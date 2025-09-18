@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin  MBBS Past Questions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .dz { border:1px dashed var(--border); border-radius:12px; padding:14px; display:flex; gap:12px; align-items:center; background:rgba(255,255,255,.03); cursor:pointer; }
+    .dz.drag { background:rgba(255,255,255,.06); }
+    .dz img { width:60px; height:60px; object-fit:contain; border-radius:8px; background:#0b1020; border:1px solid var(--border); }
+    .progress-line { height:8px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; }
+    .progress-line span { display:block; height:100%; width:0%; background:linear-gradient(125deg,var(--accent),var(--accent-2)); transition:width .2s ease; }
+    .badge-mini { font-size:12px; padding:4px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+    .hidden{display:none !important}
+
+    /* Network banner (same as dashboard) */
+    .net-banner{
+      position: fixed; left: 0; right: 0; top: 64px;
+      margin: 0 auto; z-index: 1000;
+      width: min(1100px, 96vw);
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      box-shadow: var(--shadow);
+      transform: translateY(-120%); opacity: 0; pointer-events: none;
+      transition: transform .35s ease, opacity .35s ease;
+    }
+    .net-banner.show{ transform: translateY(0); opacity: 1; pointer-events: auto; }
+    .net-banner.online{ background: rgba(40,180,99,.14); border-color: rgba(40,180,99,.35); }
+    .net-banner.offline{ background: rgba(235,77,75,.14); border-color: rgba(235,77,75,.35); }
+    .net-dot{width:10px;height:10px;border-radius:50%}
+    .net-banner.online .net-dot{background:#2ecc71}
+    .net-banner.offline .net-dot{background:#eb4d4b}
+    @media (prefers-reduced-motion: reduce){ .net-banner{ transition: none; } }
+    @media (max-width: 860px){ .net-banner{ top: calc(64px + 8px); } }
+  </style>
+</head>
+<body class="theme-dark auth-bg">
+  <main class="container" style="padding:28px">
+    <a class="brand" href="#">
+      <img src="logo.png" alt="Wesley University"/>
+      <span>Admin  Wesley University MBBS</span>
+    </a>
+
+    <!-- Network banner -->
+    <div id="netBanner" class="net-banner" role="status" aria-live="polite">
+      <span class="net-dot" aria-hidden="true"></span>
+      <span id="netText">Checking connection…</span>
+    </div>
+
+    <!-- AUTH -->
+    <section class="card" id="authCard" style="max-width:480px;margin-top:16px">
+      <h2>Admin Sign In</h2>
+      <p class="muted">Email & password (Firebase Auth)</p>
+      <label>Email</label>
+      <input id="aEmail" type="email" placeholder="admin@wesley.ng.org" required>
+      <label>Password</label>
+      <div class="password">
+        <input id="aPass" type="password" placeholder="••••••••" required>
+        <button type="button" class="show" data-target="aPass">Show</button>
+      </div>
+      <div class="actions">
+        <button id="btnSignIn" class="btn primary">Sign In</button>
+      </div>
+      <p id="authNote" class="muted"></p>
+    </section>
+
+    <!-- UPLOAD / PUBLISH -->
+    <section class="card hidden" id="uploadCard" style="margin-top:18px">
+      <div class="row between" style="margin-bottom:8px">
+        <div class="row" style="gap:10px">
+          <h2 style="margin:0">Publish Past Question</h2>
+          <span id="adminEmail" class="badge-mini"></span>
+        </div>
+        <button id="btnSignOut" class="btn">Sign Out</button>
+      </div>
+
+      <div class="grid two">
+        <div>
+          <label>Course Code</label>
+          <input id="courseCode" placeholder="e.g., BIO111" required>
+        </div>
+        <div>
+          <label>Course Name</label>
+          <input id="courseName" placeholder="e.g., Biology I" required>
+        </div>
+      </div>
+
+      <div class="grid three" style="margin-top:8px">
+        <div>
+          <label>Level</label>
+          <select id="level" required>
+            <option value="">Select Level</option>
+            <option>100</option><option>200</option><option>300</option>
+            <option>400</option><option>500</option><option>600</option>
+          </select>
+        </div>
+        <div>
+          <label>Semester</label>
+          <select id="semester" required>
+            <option value="">Select</option>
+            <option>First</option><option>Second</option>
+          </select>
+        </div>
+        <div>
+          <label>Year</label>
+          <input id="year" type="number" min="2000" max="2100" placeholder="2025" required>
+        </div>
+      </div>
+
+      <div style="margin-top:8px">
+        <label>Comment (optional)</label>
+        <input id="comment" placeholder="e.g., MBBS exam, Objective section only">
+      </div>
+
+      <!-- Dropzone + picker + preview -->
+      <div style="margin-top:8px">
+        <label>Upload Image (JPG/PNG/WEBP)</label>
+        <div id="dropzone" class="dz">
+          <img id="preview" alt="Preview" class="hidden">
+          <div class="muted" id="dzText">Drag & drop image here, or click to choose</div>
+          <input id="imageFile" type="file" accept="image/*" class="hidden">
+        </div>
+        <div class="progress-line" style="margin-top:10px"><span id="progBar"></span></div>
+        <div class="muted" id="progNote" style="margin-top:6px"></div>
+      </div>
+
+      <div class="actions" style="margin-top:12px">
+        <button id="btnPublish" class="btn primary">Publish</button>
+        <span id="pubNote" class="muted"></span>
+      </div>
+    </section>
+
+    <!-- LIST -->
+    <section class="card hidden" id="listCard" style="margin-top:18px">
+      <div class="row between">
+        <h2>Recent Uploads</h2>
+        <span class="muted" id="listCount"></span>
+      </div>
+      <div id="listWrap" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    // === Firebase (CDN) ===
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import {
+      getFirestore, collection, doc, setDoc, updateDoc, serverTimestamp,
+      query, orderBy, onSnapshot, deleteDoc, enableIndexedDbPersistence
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB6InkEfMZBP3cm_lZo15E6EfNl5w5uqpA",
+      authDomain: "wesley-app-b568a.firebaseapp.com",
+      projectId: "wesley-app-b568a",
+      storageBucket: "wesley-app-b568a.appspot.com",
+      messagingSenderId: "881690269290",
+      appId: "1:881690269290:web:89db026bd49f05aea81c13",
+      measurementId: "G-Y3LES1QWCP"
+    };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+    enableIndexedDbPersistence(db).catch(()=>{});
+
+    // === Network banner helper ===
+    function mountNetworkBanner({ autoHideMs = 3000, disableSelectors = [] } = {}){
+      const bar = document.getElementById('netBanner');
+      const txt = document.getElementById('netText');
+      if (!bar || !txt) return;
+      let hideTimer = null;
+
+      const applyState = (online, { silent = false } = {})=>{
+        bar.classList.toggle('online', online);
+        bar.classList.toggle('offline', !online);
+        bar.classList.add('show');
+
+        // Disable/enable risky buttons while offline
+        disableSelectors.forEach(sel=>{
+          document.querySelectorAll(sel).forEach(el=>{
+            if (online) {
+              el.removeAttribute('disabled');
+              el.style.opacity = '';
+              el.style.cursor = '';
+              el.title = '';
+            } else {
+              el.setAttribute('disabled', 'true');
+              el.style.opacity = '0.7';
+              el.style.cursor = 'not-allowed';
+              el.title = 'You are offline. This action will be available when you reconnect.';
+            }
+          });
+        });
+
+        if (online){
+          txt.textContent = 'Back online';
+          clearTimeout(hideTimer);
+          hideTimer = setTimeout(()=> bar.classList.remove('show'), silent ? 0 : autoHideMs);
+        } else {
+          txt.textContent = 'You are offline';
+          clearTimeout(hideTimer);
+        }
+      };
+
+      applyState(navigator.onLine, { silent: !navigator.onLine });
+      window.addEventListener('online',  ()=> applyState(true));
+      window.addEventListener('offline', ()=> applyState(false));
+    }
+
+    // UI refs
+    const authCard   = document.getElementById('authCard');
+    const uploadCard = document.getElementById('uploadCard');
+    const listCard   = document.getElementById('listCard');
+    const authNote   = document.getElementById('authNote');
+    const pubNote    = document.getElementById('pubNote');
+    const listWrap   = document.getElementById('listWrap');
+    const listCount  = document.getElementById('listCount');
+    const adminEmail = document.getElementById('adminEmail');
+
+    // Password show/hide
+    document.querySelectorAll('.password .show').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-target');
+        const input = document.getElementById(id);
+        input.type = input.type === 'password' ? 'text' : 'password';
+        btn.textContent = input.type === 'password' ? 'Show' : 'Hide';
+      });
+    });
+
+    // Auth
+    document.getElementById('btnSignIn').addEventListener('click', async ()=>{
+      const email = (document.getElementById('aEmail').value||'').trim();
+      const pass  = (document.getElementById('aPass').value||'').trim();
+      authNote.textContent = 'Signing in…';
+      try { await signInWithEmailAndPassword(auth, email, pass); authNote.textContent=''; }
+      catch(e){ authNote.textContent = e.message; }
+    });
+    document.getElementById('btnSignOut').addEventListener('click', async ()=>{ await signOut(auth); });
+
+    onAuthStateChanged(auth, (user)=>{
+      const authed = !!user;
+      authCard.classList.toggle('hidden', authed);
+      uploadCard.classList.toggle('hidden', !authed);
+      listCard.classList.toggle('hidden', !authed);
+      adminEmail.textContent = authed ? (user.email || '') : '';
+      if (authed) {
+        loadList();
+        // mount banner & disable risky actions when offline
+        mountNetworkBanner({ disableSelectors: ['#btnPublish', '[data-del]'] });
+      }
+    });
+
+    // --- Dropzone / preview ---
+    const dz = document.getElementById('dropzone');
+    const fileInput = document.getElementById('imageFile');
+    const preview = document.getElementById('preview');
+    const dzText = document.getElementById('dzText');
+    const progBar = document.getElementById('progBar');
+    const progNote= document.getElementById('progNote');
+    const btnPublish = document.getElementById('btnPublish');
+
+    function setPreview(file){
+      if (!file){ preview.classList.add('hidden'); preview.removeAttribute('src'); dzText.textContent='Drag & drop image here, or click to choose'; return; }
+      const url = URL.createObjectURL(file);
+      preview.src = url; preview.classList.remove('hidden');
+      dzText.textContent = file.name + ` (${Math.round(file.size/1024)} KB)`;
+    }
+    dz.addEventListener('click', ()=> fileInput.click());
+    dz.addEventListener('dragover', (e)=>{ e.preventDefault(); dz.classList.add('drag'); });
+    dz.addEventListener('dragleave', ()=> dz.classList.remove('drag'));
+    dz.addEventListener('drop', (e)=>{ e.preventDefault(); dz.classList.remove('drag'); const f=e.dataTransfer.files?.[0]; if (f){ fileInput.files=e.dataTransfer.files; setPreview(f); }});
+    fileInput.addEventListener('change', ()=>{ const f=fileInput.files?.[0]; setPreview(f); });
+
+    // Image compression to Base64 JPEG
+    function readFileAsImage(file){
+      return new Promise((resolve,reject)=>{
+        const img = new Image();
+        img.onload = ()=> resolve(img);
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+    }
+    async function compressToDataURL(file, maxW=1200, maxH=1600, quality=0.8){
+      const img = await readFileAsImage(file);
+      let {width:w, height:h} = img;
+      const r = Math.min(maxW/w, maxH/h, 1);
+      const cw = Math.round(w*r), ch = Math.round(h*r);
+      const canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0,0,cw,ch);
+      ctx.drawImage(img, 0, 0, cw, ch);
+      let dataURL = canvas.toDataURL('image/jpeg', quality);
+      if (dataURL.length/1.37 > 900*1024) { dataURL = canvas.toDataURL('image/jpeg', 0.7); }
+      URL.revokeObjectURL(img.src);
+      return dataURL;
+    }
+
+    // Publish (no Storage)
+    async function publish() {
+      const courseCode = document.getElementById('courseCode').value.trim();
+      const courseName = document.getElementById('courseName').value.trim();
+      const level      = document.getElementById('level').value.trim();
+      const semester   = document.getElementById('semester').value.trim();
+      const year       = parseInt((document.getElementById('year').value||'').trim(), 10);
+      const comment    = document.getElementById('comment').value.trim();
+      const file       = fileInput.files?.[0];
+
+      if (!courseCode || !courseName || !level || !semester || !year || !file){
+        pubNote.textContent = 'Please fill all required fields and select an image.'; return;
+      }
+      if (!/^(jpe?g|png|webp)$/i.test((file.name.split('.').pop()||''))){
+        pubNote.textContent = 'Only JPG/PNG/WEBP images are allowed.'; return;
+      }
+
+      try {
+        btnPublish.disabled = true;
+        pubNote.textContent = 'Compressing image…';
+        progBar.style.width = '10%'; progNote.textContent = 'Preparing…';
+
+        const imageData = await compressToDataURL(file);
+        const approxBytes = Math.round(imageData.length / 1.37);
+        if (approxBytes > 950*1024){
+          pubNote.textContent = 'Image too large after compression. Please choose a smaller scan (≈ ≤1MB).';
+          btnPublish.disabled = false; return;
+        }
+
+        pubNote.textContent = 'Saving…';
+        progBar.style.width = '80%'; progNote.textContent = 'Writing Uploading…';
+
+        const id = crypto.randomUUID();
+        await setDoc(doc(db,'past_questions', id), {
+          courseCode, courseName, level, semester, year,
+          comment: comment || '',
+          imageData,
+          createdAt: serverTimestamp()
+        });
+
+        pubNote.textContent = 'Published ✔';
+        progBar.style.width = '100%'; progNote.textContent = 'Done';
+        setTimeout(()=>{ progBar.style.width='0%'; progNote.textContent=''; }, 600);
+
+        // reset UI
+        ['courseCode','courseName','level','semester','year','comment'].forEach(i=>{ const el=document.getElementById(i); if(el) el.value=''; });
+        fileInput.value=''; setPreview(null);
+
+      } catch (e) {
+        console.error('Publish failed:', e);
+        pubNote.textContent = 'Failed: ' + (e.message || e.code || e);
+      } finally {
+        btnPublish.disabled = false;
+      }
+    }
+    document.getElementById('btnPublish').addEventListener('click', publish);
+
+    // Live list + delete
+    function renderList(items){
+      listCount.textContent = `${items.length} item${items.length===1?'':'s'}`;
+      listWrap.innerHTML = items.map(i=>`
+        <article class="card">
+          <div class="muted" style="font-size:12px;margin-bottom:6px">
+            <b>${i.courseCode||''}</b> — ${i.courseName||''}
+          </div>
+          ${i.imageData ? `<img src="${i.imageData}" alt="${i.courseCode}" style="border-radius:12px;max-height:300px;object-fit:contain;width:100%;background:#0b1020;border:1px solid var(--border)">` : '<div class="muted">No image</div>'}
+          <div class="muted" style="font-size:12px;margin-top:8px">
+            ${i.level||''}L • ${i.semester||''} • ${i.year||''}
+          </div>
+          ${i.comment?`<div class="muted" style="margin-top:6px">${i.comment}</div>`:''}
+          <div class="actions" style="margin-top:8px">
+            ${i.imageData?`<a class="btn ghost" href="${i.imageData}" download="${(i.courseCode||'past-question')}.jpg">Download</a>`:''}
+            <button class="btn" data-del="${i.id}">Delete</button>
+          </div>
+        </article>
+      `).join('');
+
+      // Delete
+      listWrap.querySelectorAll('[data-del]').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const id = btn.getAttribute('data-del');
+          if (!confirm('Delete this item?')) return;
+          try { await deleteDoc(doc(db,'past_questions',id)); } 
+          catch(e){ alert(e.message); }
+        });
+      });
+
+      // refresh network banner disabling (new delete buttons)
+      mountNetworkBanner({ disableSelectors: ['#btnPublish', '[data-del]'] });
+    }
+
+    function loadList(){
+      const qy = query(collection(db,'past_questions'), orderBy('createdAt','desc'));
+      onSnapshot(qy, (snap)=>{
+        const items = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+        renderList(items);
+      }, (err)=>{
+        console.error('onSnapshot error:', err);
+        listWrap.innerHTML = '<div class="muted">Failed to load list.</div>';
+      });
+    }
+  </script>
+</body>
+</html>
